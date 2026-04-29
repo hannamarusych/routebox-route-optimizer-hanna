@@ -1,0 +1,4 @@
+# Same shape as shipments-api: laughably incomplete by design.
+README.md
+__pycache__
+.pytest_cache

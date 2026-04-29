@@ -1,0 +1,98 @@
+# Local-dev compose for routebox-route-optimizer.
+#
+# Brings up Postgres 14 + LocalStack (pinned to an old release because
+# the carrier-side signature-validation logic broke against newer
+# LocalStack — see README) + the worker. Migrations are pulled from a
+# sibling clone of routebox-db-migrations.
+
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: routebox
+      POSTGRES_PASSWORD: routebox
+      POSTGRES_DB: routebox
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routebox -d routebox"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: flyway/flyway:9-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ${ROUTEBOX_MIGRATIONS_DIR:-../routebox-db-migrations/flyway/sql}:/flyway/sql
+    command: >
+      -url=jdbc:postgresql://postgres:5432/routebox
+      -user=routebox
+      -password=routebox
+      -connectRetries=10
+      migrate
+
+  # LocalStack pinned to 2.3 — newer versions broke our signature path.
+  # See README "Known issues."
+  localstack:
+    image: localstack/localstack:2.3
+    environment:
+      SERVICES: sqs,sns
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  bootstrap:
+    image: amazon/aws-cli:2.13.30
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name route-calc-requests &&
+      aws --endpoint-url=http://localstack:4566 sns create-topic --name route-calc-completions
+      "
+
+  route-optimizer:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+      ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: postgres://routebox:routebox@postgres:5432/routebox
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/route-calc-requests
+      SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:route-calc-completions
+      SOLVER_TIME_LIMIT_SECONDS: '15'
+      MAX_CONCURRENT_SOLVES: '1'
+      PORT: '3000'
+      SQS_WAIT_SECONDS: '5'
+    ports:
+      - "3001:3000"

@@ -1,0 +1,33 @@
+# Pinned versions for routebox-route-optimizer.
+#
+# We're on Python 3.10 in prod. ortools and numpy are pinned to versions
+# the team has used for a long time; moving off them means re-validating
+# solver outputs, which nobody wants to volunteer for.
+#
+# A couple of these don't install cleanly on Python 3.12+:
+#   - numpy 1.24.4 has no wheels for cp312, and building from source on
+#     3.12 fails (distutils removal). Marked with a python_version
+#     guard so it gets *skipped* on cp313+ — that was added when the
+#     local-dev Macs started shipping with 3.13. It does NOT skip on
+#     3.12 (intentional — we don't want anyone running prod tasks on
+#     a 3.12 venv until ortools is sorted out).
+#   - ortools is loose-pinned in a range we've tested. The lower bound
+#     reflects an ABI we trust; upper bound is "before they cleaned up
+#     a few solver internals we depend on."
+
+ortools>=9.10,<9.16
+psycopg2-binary>=2.9.10,<3
+boto3==1.28.85
+botocore==1.31.85
+structlog==23.1.0
+
+# numpy: see comment above. Only installed on Python <3.13 — we
+# excluded 3.13+ when the build started failing on dev machines, but
+# kept the pin so 3.10 prod behavior doesn't drift.
+numpy==1.24.4; python_version < "3.13"
+
+# --- test-only ---
+pytest==7.4.0
+pytest-mock==3.11.1
+testcontainers[postgres,localstack]==3.7.1
+moto[sqs,sns]==4.2.6
