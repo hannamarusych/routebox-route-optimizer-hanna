@@ -10,12 +10,13 @@ RouteBox Route Optimizer is the platform's route-calculation worker. It consumes
 
 This repository is one component of the RouteBox platform.
 
-Related repositories:
-- [routebox-infra-tf-hanna](https://github.com/hannamarusych/routebox-infra-tf-hanna)
-- [routebox-shipments-api-hanna](https://github.com/hannamarusych/routebox-shipments-api-hanna)
-- [routebox-tracking-events-hanna](https://github.com/hannamarusych/routebox-tracking-events-hanna)
-- routebox-route-optimizer-hanna (this repository)
-- routebox-ops-console-hanna
+The platform is split across five repositories:
+
+- **[routebox-infra-tf-hanna](https://github.com/hannamarusych/routebox-infra-tf-hanna)** — AWS infrastructure-as-code with Terraform: modular resources, environment separation, and state management.
+- **[routebox-shipments-api-hanna](https://github.com/hannamarusych/routebox-shipments-api-hanna)** — customer-facing REST service that owns the shipment lifecycle (create, read, update, webhook delivery).
+- **[routebox-tracking-events-hanna](https://github.com/hannamarusych/routebox-tracking-events-hanna)** — carrier webhook ingestion service that validates, deduplicates, and persists status events from UPS, FedEx, DHL, USPS, and regional carriers.
+- **[routebox-route-optimizer-hanna](https://github.com/hannamarusych/routebox-route-optimizer-hanna)** — queue-driven route-calculation worker that solves multi-stop vehicle routing with Google OR-Tools as a horizontally scalable background process. *(this repository)*
+- **[routebox-ops-console-hanna](https://github.com/hannamarusych/routebox-ops-console-hanna)** — internal admin dashboard (Rails) for support, billing, and operations staff to manage tenants and investigate shipments.
 
 ---
 
